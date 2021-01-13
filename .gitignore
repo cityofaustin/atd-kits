@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# custom
+.DS_Store
+notes.md
+pytest.ini
+env_file

@@ -1,0 +1,4 @@
+arrow>=0.17.*
+pymssql>=2.1.*
+requests>=2.2.*
+sodapy>=2.1.*
