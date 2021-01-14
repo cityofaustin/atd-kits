@@ -6,8 +6,7 @@ It works like this:
 1. Query KITS MSSQL DB for signals in with status 1, 2, or 3. These indicate flashing
 signals or communication outages.
 2. Fetch the stale signal status data published on the Open Data Portal
-3. Compare the KITS signal status data against the stale status data from Socrata, and
-delete/upsert the current data
+3. Replace Socrata dataset with current data
 
 This script should be scheduled at 5 min intervals and is consumed by the Traffic Signal
 Monitor dashboard, available here: https://data.mobility.austin.gov/signals-on-flash/
@@ -73,18 +72,6 @@ def stringify_signal_ids(kits_sig_status, key="signal_id"):
     return
 
 
-def identify_deletes(kits_sig_status, socrata_sig_status):
-    """ Identify signals that need to be deleted from socrata signal status dataset and
-    return the delete payload"""
-    delete_signals = []
-    kits_ids = [s["signal_id"] for s in kits_sig_status]
-    socrata_ids = [s["signal_id"] for s in socrata_sig_status]
-    for signal_id in socrata_ids:
-        if signal_id not in kits_ids:
-            delete_signals.append({"signal_id": signal_id, ":deleted": True})
-    return delete_signals
-
-
 def merge_signal_asset_data(kits_sig_status, signal_asset_data):
     """Update kits signal status data with asset info"""
     asset_fields = ["location", "location_name", "primary_st", "cross_st"]
@@ -104,15 +91,15 @@ def merge_signal_asset_data(kits_sig_status, signal_asset_data):
     return
 
 
-def localize_operation_state_datetime(
+def format_operation_state_datetime(
     kits_sig_status, key="operation_state_datetime", tz="US/Central"
 ):
     for signal in kits_sig_status:
-        dt = arrow.get(signal[key])
         # kits timestamps are in US/Central
-        dt_local = dt.replace(tzinfo=tz)
+        dt = arrow.get(signal[key], tz)
         # socrata-friendly format (no TZ info)
-        signal[key] = dt_local.format("YYYY-MM-DDTHH:mm:ss")
+        signal[key] = dt.format("YYYY-MM-DDTHH:mm:ss")
+        print("SIGNAL", signal["location_name"], "date", signal[key])
     return
 
 
@@ -148,14 +135,6 @@ def main():
 
     stringify_signal_ids(kits_sig_status)
 
-    # get the current signal statuses from socrata (these are the records we will
-    # update, replace, or delete
-    socrata_sig_status = get_socrata_data(SIGNAL_STATUS_RESOURCE_ID, {"$limit": 99999})
-
-    delete_signals = identify_deletes(kits_sig_status, socrata_sig_status)
-
-    logger.info(f"{len(delete_signals)} to be deleted.")
-
     fetch_signal_ids = [signal["signal_id"] for signal in kits_sig_status]
 
     params = {
@@ -167,7 +146,7 @@ def main():
 
     merge_signal_asset_data(kits_sig_status, signal_asset_data)
 
-    localize_operation_state_datetime(kits_sig_status)
+    format_operation_state_datetime(kits_sig_status)
 
     set_processed_datetime(kits_sig_status)
 
@@ -182,7 +161,7 @@ def main():
         password=SOCRATA_API_KEY_SECRET,
     )
 
-    client.upsert(SIGNAL_STATUS_RESOURCE_ID, kits_sig_status + delete_signals)
+    client.replace(SIGNAL_STATUS_RESOURCE_ID, kits_sig_status)
 
 
 if __name__ == "__main__":
