@@ -99,7 +99,6 @@ def format_operation_state_datetime(
         dt = arrow.get(signal[key], tz)
         # socrata-friendly format (no TZ info)
         signal[key] = dt.format("YYYY-MM-DDTHH:mm:ss")
-        print("SIGNAL", signal["location_name"], "date", signal[key])
     return
 
 
