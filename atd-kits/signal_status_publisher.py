@@ -121,7 +121,7 @@ def format_locations(kits_sig_status):
         lat = signal.get("location", {}).get("latitude")
         lon = signal.get("location", {}).get("longitude")
         if lat and lon:
-            signal["location"] = f"({lon}, {lat})"
+            signal["location"] = f"({lat}, {lon})"
     return
 
 
