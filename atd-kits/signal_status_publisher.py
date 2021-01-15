@@ -116,15 +116,6 @@ def convert_decimals(kits_sig_status, keys=["operation_state", "plan_id"]):
     return
 
 
-def format_locations(kits_sig_status):
-    for signal in kits_sig_status:
-        lat = signal.get("location", {}).get("latitude")
-        lon = signal.get("location", {}).get("longitude")
-        if lat and lon:
-            signal["location"] = f"({lat}, {lon})"
-    return
-
-
 def main():
     kits_sig_status = get_kits_signal_status(
         KITS_SERVER, KITS_USER, KITS_PASSWORD, KITS_DATABSE
@@ -145,13 +136,15 @@ def main():
 
     merge_signal_asset_data(kits_sig_status, signal_asset_data)
 
+    # filter out any signals without a location——probably test/lab signals that are not
+    # known to our asset tracking
+    kits_sig_status = [s for s in kits_sig_status if s.get("location")]
+
     format_operation_state_datetime(kits_sig_status)
 
     set_processed_datetime(kits_sig_status)
 
     convert_decimals(kits_sig_status)
-
-    format_locations(kits_sig_status)
 
     client = sodapy.Socrata(
         "data.austintexas.gov",
