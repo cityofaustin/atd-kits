@@ -151,6 +151,7 @@ def main():
         SOCRATA_APP_TOKEN,
         username=SOCRATA_API_KEY_ID,
         password=SOCRATA_API_KEY_SECRET,
+        timeout=30,
     )
 
     client.replace(SIGNAL_STATUS_RESOURCE_ID, kits_sig_status)
