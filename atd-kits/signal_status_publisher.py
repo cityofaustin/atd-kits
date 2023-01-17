@@ -147,7 +147,7 @@ def main():
     convert_decimals(kits_sig_status)
 
     client = sodapy.Socrata(
-        "data.austintexas.gov",
+        "datahub.austintexas.gov",
         SOCRATA_APP_TOKEN,
         username=SOCRATA_API_KEY_ID,
         password=SOCRATA_API_KEY_SECRET,
