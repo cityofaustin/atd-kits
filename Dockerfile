@@ -1,4 +1,3 @@
-# just a comment
 FROM python:3.8-slim
 
 #  Required for pymssql
