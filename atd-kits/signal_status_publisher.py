@@ -33,6 +33,11 @@ FLASH_STATUSES = [1, 2, 3]
 SIGNAL_STATUS_RESOURCE_ID = "5zpr-dehc"
 SIGNALS_RESOURCE_ID = "p53x-x73x"
 
+STATUS_NAMES = {
+    1: "Scheduled flash",
+    2: "Unscheduled (Conflict) flash",
+    3: "Communication issue",
+}
 
 def get_kits_signal_status(server, user, password, database):
     """ Fetch traffic signal operation statuses from the KITS mssql database """
@@ -58,6 +63,14 @@ def get_kits_signal_status(server, user, password, database):
             cursor.execute(query)
             return cursor.fetchall()
 
+
+def decode_signal_status(kits_sig_status):
+    """
+    Converts KITS status codes into human-readable text.
+    """
+    for sig in kits_sig_status:
+        sig["operation_text"] = STATUS_NAMES[sig["operation_state"]]
+    return kits_sig_status
 
 def get_socrata_data(resource_id, params):
     endpoint = f"https://data.austintexas.gov/resource/{resource_id}.json"
@@ -123,6 +136,8 @@ def main():
 
     logger.info(f"{len(kits_sig_status)} records to process.")
 
+    kits_sig_status = decode_signal_status(kits_sig_status)
+
     stringify_signal_ids(kits_sig_status)
 
     fetch_signal_ids = [signal["signal_id"] for signal in kits_sig_status]
@@ -147,7 +162,7 @@ def main():
     convert_decimals(kits_sig_status)
 
     client = sodapy.Socrata(
-        "data.austintexas.gov",
+        "datahub.austintexas.gov",
         SOCRATA_APP_TOKEN,
         username=SOCRATA_API_KEY_ID,
         password=SOCRATA_API_KEY_SECRET,
