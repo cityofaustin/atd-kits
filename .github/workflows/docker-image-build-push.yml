@@ -24,6 +24,6 @@ jobs:
           platforms: linux/amd64
           push: true
           # tag with `production` if production branch else staging
-          tags: ${{ secrets.DOCKER_USERNAME }}/atd-metrobike:${{ github.ref == 'refs/heads/production' && 'production' || 'staging' }}
+          tags: ${{ secrets.DOCKER_USERNAME }}/atd-kits:${{ github.ref == 'refs/heads/production' && 'production' || 'staging' }}
       - name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
