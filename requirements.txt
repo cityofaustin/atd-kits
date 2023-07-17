@@ -1,4 +1,4 @@
-arrow>=0.*
-pymssql>=2.*
-requests>=2.*
-sodapy>=2.*
+arrow==0.*
+pymssql==2.*
+requests==2.*
+sodapy==2.*
