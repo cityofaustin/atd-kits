@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 python:3.8-slim
+FROM python:3.8-slim
 
 #  Required for pymssql
 RUN apt-get update && apt-get install -y \
