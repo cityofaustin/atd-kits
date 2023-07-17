@@ -1,4 +1,4 @@
-FROM python:3.8-buster
+FROM --platform=linux/amd64 python:3.8-slim
 
 #  Required for pymssql
 RUN apt-get update && apt-get install -y \
@@ -13,6 +13,8 @@ COPY . /app/atd-kits
 
 RUN chmod -R 755 /app/*
 
+RUN pip install -U pip
+
 ## Proceed to install the requirements...do
-RUN cd /app/atd-kits && apt-get update && \
+RUN cd /app/atd-kits && \
     pip install -r requirements.txt
