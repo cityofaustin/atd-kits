@@ -18,13 +18,17 @@ import pymssql
 import requests
 import sodapy
 
-import utils
+import utils.kits_utils as kits_utils
+import utils.logging as logging
 
 # docker run --network host -it --rm --env-file /Users/john/Dropbox/atd/atd-kits/env_file -v /Users/john/Dropbox/atd/atd-kits:/app/atd-kits atddocker/atd-kits /bin/bash
-KITS_SERVER = os.getenv("KITS_SERVER")
-KITS_USER = os.getenv("KITS_USER")
-KITS_PASSWORD = os.getenv("KITS_PASSWORD")
-KITS_DATABSE = os.getenv("KITS_DATABSE")
+KITS_CREDENTIALS = {
+    "server": os.getenv("KITS_SERVER"),
+    "user": os.getenv("KITS_USER"),
+    "password": os.getenv("KITS_PASSWORD"),
+    "database": os.getenv("KITS_DATABSE"),
+}
+
 SOCRATA_APP_TOKEN = os.getenv("SOCRATA_APP_TOKEN")
 SOCRATA_API_KEY_ID = os.getenv("SOCRATA_API_KEY_ID")
 SOCRATA_API_KEY_SECRET = os.getenv("SOCRATA_API_KEY_SECRET")
@@ -41,21 +45,6 @@ STATUS_NAMES = {
 
 def get_kits_signal_status(server, user, password, database):
     """ Fetch traffic signal operation statuses from the KITS mssql database """
-    query = f"""
-        SELECT
-            status.DATETIME as operation_state_datetime,
-            status.STATUS as operation_state,
-            status.PLANID as plan_id,
-            signal.ASSETNUM as signal_id
-        FROM [KITS].[INTERSECTION] signal
-        LEFT OUTER JOIN [KITS].[INTERSECTIONSTATUS] status
-        ON signal.[INTID] = status.[INTID]
-        WHERE
-            status.DATETIME IS NOT NULL
-        AND
-            status.STATUS in ({",".join([str(s) for s in FLASH_STATUSES])})
-        ORDER BY status.DATETIME DESC
-    """
     with pymssql.connect(
         server=server, user=user, password=password, database=database, timeout=10,
     ) as conn:
@@ -130,9 +119,23 @@ def convert_decimals(kits_sig_status, keys=["operation_state", "plan_id"]):
 
 
 def main():
-    kits_sig_status = get_kits_signal_status(
-        KITS_SERVER, KITS_USER, KITS_PASSWORD, KITS_DATABSE
-    )
+    kits_query = f"""
+        SELECT
+            status.DATETIME as operation_state_datetime,
+            status.STATUS as operation_state,
+            status.PLANID as plan_id,
+            signal.ASSETNUM as signal_id
+        FROM [KITS].[INTERSECTION] signal
+        LEFT OUTER JOIN [KITS].[INTERSECTIONSTATUS] status
+        ON signal.[INTID] = status.[INTID]
+        WHERE
+            status.DATETIME IS NOT NULL
+        AND
+            status.STATUS in ({",".join([str(s) for s in FLASH_STATUSES])})
+        ORDER BY status.DATETIME DESC
+    """
+
+    kits_sig_status = kits_utils.data_as_dict(KITS_CREDENTIALS, kits_query)
 
     logger.info(f"{len(kits_sig_status)} records to process.")
 
@@ -173,5 +176,5 @@ def main():
 
 
 if __name__ == "__main__":
-    logger = utils.logging.getLogger(__file__)
+    logger = logging.getLogger(__file__)
     main()
