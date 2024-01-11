@@ -1,6 +1,6 @@
 # atd-kits
 
-Python scriptss for managing integrations with ATD's KITS traffic management system.
+Python scripts for managing integrations with ATD's KITS traffic management system.
 
 ## Scripts
 
