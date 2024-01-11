@@ -43,10 +43,15 @@ STATUS_NAMES = {
     3: "Communication issue",
 }
 
+
 def get_kits_signal_status(server, user, password, database):
-    """ Fetch traffic signal operation statuses from the KITS mssql database """
+    """Fetch traffic signal operation statuses from the KITS mssql database"""
     with pymssql.connect(
-        server=server, user=user, password=password, database=database, timeout=10,
+        server=server,
+        user=user,
+        password=password,
+        database=database,
+        timeout=10,
     ) as conn:
         with conn.cursor(as_dict=True) as cursor:
             cursor.execute(query)
@@ -60,6 +65,7 @@ def decode_signal_status(kits_sig_status):
     for sig in kits_sig_status:
         sig["operation_text"] = STATUS_NAMES[sig["operation_state"]]
     return kits_sig_status
+
 
 def get_socrata_data(resource_id, params):
     endpoint = f"https://data.austintexas.gov/resource/{resource_id}.json"
