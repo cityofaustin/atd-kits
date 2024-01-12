@@ -41,7 +41,7 @@ STATUS_NAMES = {
     1: "Scheduled flash",
     2: "Unscheduled (Conflict) flash",
     3: "Communication issue",
-    4: "Dark" # confirm wording on this
+    4: "Dark",  # confirm wording on this
 }
 
 
@@ -85,7 +85,7 @@ def merge_signal_asset_data(kits_sig_status, signal_asset_data, dark_signal_data
     """Update kits signal status data with asset info"""
     asset_fields = ["location", "location_name", "primary_st", "cross_st"]
 
-    dark_signal_ids = [signal["signal_id"] for signal in dark_signal_data ]
+    dark_signal_ids = [signal["signal_id"] for signal in dark_signal_data]
 
     for kits_signal in kits_sig_status:
         matched_signal_list = [
@@ -100,7 +100,30 @@ def merge_signal_asset_data(kits_sig_status, signal_asset_data, dark_signal_data
         matched_signal = matched_signal_list[0]
         kits_signal.update({key: matched_signal.get(key) for key in asset_fields})
         if kits_signal["signal_id"] in dark_signal_ids:
-            kits_signal["operation_state"] = 4 # remove the signal id from the list of dark signals?
+            kits_signal["operation_state"] = 4
+            kits_signal["operation_text"] = "Dark Traffic Signal (No Power)"
+            # overwriting operation datetime with the date the knack record was last updated
+            kits_signal["operation_state_datetime"] = arrow.get(
+                matched_signal["modified_date"][:-5], "YYYY-MM-DDTHH:mm:ss"
+            ).datetime
+
+    # Catching dark signals not captured in the initial KITS query
+    signal_ids = [signal["signal_id"] for signal in kits_sig_status]
+    for dark_signal in dark_signal_data:
+        if dark_signal["signal_id"] not in signal_ids:
+            # Building dark signal record
+            rec = {
+                "signal_id": dark_signal["signal_id"],
+                "operation_state": 4,
+                "operation_text": "Dark Traffic Signal (No Power)",
+                "plan_id": -1,
+                # operation datetime is the date the knack record was last updated
+                "operation_state_datetime": arrow.get(
+                    dark_signal["modified_date"][:-5], "YYYY-MM-DDTHH:mm:ss"
+                ).datetime,
+            }
+            rec.update({key: dark_signal.get(key) for key in asset_fields})
+            kits_sig_status.append(rec)
     return
 
 
@@ -181,15 +204,15 @@ def main():
 
     convert_decimals(kits_sig_status)
 
-    # client = sodapy.Socrata(
-    #     "datahub.austintexas.gov",
-    #     SOCRATA_APP_TOKEN,
-    #     username=SOCRATA_API_KEY_ID,
-    #     password=SOCRATA_API_KEY_SECRET,
-    #     timeout=30,
-    # )
-    #
-    # client.replace(SIGNAL_STATUS_RESOURCE_ID, kits_sig_status)
+    client = sodapy.Socrata(
+        "datahub.austintexas.gov",
+        SOCRATA_APP_TOKEN,
+        username=SOCRATA_API_KEY_ID,
+        password=SOCRATA_API_KEY_SECRET,
+        timeout=30,
+    )
+
+    client.replace(SIGNAL_STATUS_RESOURCE_ID, kits_sig_status)
 
 
 if __name__ == "__main__":
