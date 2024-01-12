@@ -41,6 +41,7 @@ STATUS_NAMES = {
     1: "Scheduled flash",
     2: "Unscheduled (Conflict) flash",
     3: "Communication issue",
+    4: "Dark" # confirm wording on this
 }
 
 
@@ -80,9 +81,11 @@ def stringify_signal_ids(kits_sig_status, key="signal_id"):
     return
 
 
-def merge_signal_asset_data(kits_sig_status, signal_asset_data):
+def merge_signal_asset_data(kits_sig_status, signal_asset_data, dark_signal_data):
     """Update kits signal status data with asset info"""
     asset_fields = ["location", "location_name", "primary_st", "cross_st"]
+
+    dark_signal_ids = [signal["signal_id"] for signal in dark_signal_data ]
 
     for kits_signal in kits_sig_status:
         matched_signal_list = [
@@ -96,6 +99,8 @@ def merge_signal_asset_data(kits_sig_status, signal_asset_data):
         # stop this script. likely an issue with dupes in the signal assets ETL
         matched_signal = matched_signal_list[0]
         kits_signal.update({key: matched_signal.get(key) for key in asset_fields})
+        if kits_signal["signal_id"] in dark_signal_ids:
+            kits_signal["operation_state"] = 4 # remove the signal id from the list of dark signals?
     return
 
 
@@ -158,7 +163,13 @@ def main():
     # get asset data about each signal (street names, location, etc)
     signal_asset_data = get_socrata_data(SIGNALS_RESOURCE_ID, params)
 
-    merge_signal_asset_data(kits_sig_status, signal_asset_data)
+    dark_params = {
+        "$where": f"dark_signal='YES'",
+        "$limit": 99999,
+    }
+    dark_signal_data = get_socrata_data(SIGNALS_RESOURCE_ID, dark_params)
+
+    merge_signal_asset_data(kits_sig_status, signal_asset_data, dark_signal_data)
 
     # filter out any signals without a location——probably test/lab signals that are not
     # known to our asset tracking
@@ -170,15 +181,15 @@ def main():
 
     convert_decimals(kits_sig_status)
 
-    client = sodapy.Socrata(
-        "datahub.austintexas.gov",
-        SOCRATA_APP_TOKEN,
-        username=SOCRATA_API_KEY_ID,
-        password=SOCRATA_API_KEY_SECRET,
-        timeout=30,
-    )
-
-    client.replace(SIGNAL_STATUS_RESOURCE_ID, kits_sig_status)
+    # client = sodapy.Socrata(
+    #     "datahub.austintexas.gov",
+    #     SOCRATA_APP_TOKEN,
+    #     username=SOCRATA_API_KEY_ID,
+    #     password=SOCRATA_API_KEY_SECRET,
+    #     timeout=30,
+    # )
+    #
+    # client.replace(SIGNAL_STATUS_RESOURCE_ID, kits_sig_status)
 
 
 if __name__ == "__main__":
