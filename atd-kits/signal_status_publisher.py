@@ -157,7 +157,7 @@ def main():
     fetch_signal_ids = [signal["signal_id"] for signal in kits_sig_status]
 
     params = {
-        "$where": f"signal_id in ({','.join(fetch_signal_ids)}) OR dark_signal='YES'",
+        "$where": f"signal_id in ({','.join(fetch_signal_ids)})",
         "$limit": 99999,
     }
     # get asset data about each signal (street names, location, etc)
