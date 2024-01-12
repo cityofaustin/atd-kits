@@ -41,12 +41,18 @@ STATUS_NAMES = {
     1: "Scheduled flash",
     2: "Unscheduled (Conflict) flash",
     3: "Communication issue",
+    4: "Dark",
 }
 
+
 def get_kits_signal_status(server, user, password, database):
-    """ Fetch traffic signal operation statuses from the KITS mssql database """
+    """Fetch traffic signal operation statuses from the KITS mssql database"""
     with pymssql.connect(
-        server=server, user=user, password=password, database=database, timeout=10,
+        server=server,
+        user=user,
+        password=password,
+        database=database,
+        timeout=10,
     ) as conn:
         with conn.cursor(as_dict=True) as cursor:
             cursor.execute(query)
@@ -60,6 +66,7 @@ def decode_signal_status(kits_sig_status):
     for sig in kits_sig_status:
         sig["operation_text"] = STATUS_NAMES[sig["operation_state"]]
     return kits_sig_status
+
 
 def get_socrata_data(resource_id, params):
     endpoint = f"https://data.austintexas.gov/resource/{resource_id}.json"
@@ -77,7 +84,6 @@ def stringify_signal_ids(kits_sig_status, key="signal_id"):
 def merge_signal_asset_data(kits_sig_status, signal_asset_data):
     """Update kits signal status data with asset info"""
     asset_fields = ["location", "location_name", "primary_st", "cross_st"]
-
     for kits_signal in kits_sig_status:
         matched_signal_list = [
             a for a in signal_asset_data if a["signal_id"] == kits_signal["signal_id"]
@@ -90,6 +96,37 @@ def merge_signal_asset_data(kits_sig_status, signal_asset_data):
         # stop this script. likely an issue with dupes in the signal assets ETL
         matched_signal = matched_signal_list[0]
         kits_signal.update({key: matched_signal.get(key) for key in asset_fields})
+
+    return
+
+
+def merge_dark_signals(kits_sig_status, dark_signal_data):
+    signal_ids = [signal["signal_id"] for signal in kits_sig_status]
+    asset_fields = ["location", "location_name", "primary_st", "cross_st"]
+
+    for dark_signal in dark_signal_data:
+        if dark_signal["signal_id"] not in signal_ids:
+            # Building dark signal record
+            rec = {
+                "signal_id": dark_signal["signal_id"],
+                "operation_state": 4,
+                "operation_text": "Dark Traffic Signal (No Power)",
+                "plan_id": -1,
+                # operation datetime is the date the knack record was last updated
+                "operation_state_datetime": arrow.get(
+                    dark_signal["modified_date"][:-5], "YYYY-MM-DDTHH:mm:ss"
+                ).datetime,
+            }
+            rec.update({key: dark_signal.get(key) for key in asset_fields})
+            kits_sig_status.append(rec)
+        else:
+            rec = [s for s in kits_sig_status if s["signal_id"] == dark_signal["signal_id"]]
+            rec[0]["operation_state"] = 4
+            rec[0]["operation_text"] = "Dark Traffic Signal (No Power)"
+            # overwriting operation datetime with the date the knack record was last updated
+            rec[0]["operation_state_datetime"] = arrow.get(
+                dark_signal["modified_date"][:-5], "YYYY-MM-DDTHH:mm:ss"
+            ).datetime
     return
 
 
@@ -152,7 +189,14 @@ def main():
     # get asset data about each signal (street names, location, etc)
     signal_asset_data = get_socrata_data(SIGNALS_RESOURCE_ID, params)
 
+    dark_params = {
+        "$where": f"dark_signal='YES'",
+        "$limit": 99999,
+    }
+    dark_signal_data = get_socrata_data(SIGNALS_RESOURCE_ID, dark_params)
     merge_signal_asset_data(kits_sig_status, signal_asset_data)
+
+    merge_dark_signals(kits_sig_status, dark_signal_data)
 
     # filter out any signals without a location——probably test/lab signals that are not
     # known to our asset tracking
