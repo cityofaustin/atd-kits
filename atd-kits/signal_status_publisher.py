@@ -41,7 +41,7 @@ STATUS_NAMES = {
     1: "Scheduled flash",
     2: "Unscheduled (Conflict) flash",
     3: "Communication issue",
-    4: "Dark",  # confirm wording on this
+    4: "Dark",
 }
 
 
